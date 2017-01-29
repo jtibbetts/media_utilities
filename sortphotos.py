@@ -6,6 +6,17 @@ sortphotos.py
 Created on 3/2/2013
 Copyright (c) S. Andrew Ning. All rights reserved.
 
+Option --invert-result <invert-directory>
+
+typical use
+
+
+python ~/git/media_utilities/sortphotos.py -r --invert-result /Volumes/BackupHFS/InvertPhotos/  --sort %Y/%Y-%m-%b ~/Pictures /Volumes/BackupHFS/TargetPhotos/
+
+<manually delete undesired photos>
+
+python ~/git/media_utilities/sortphotos.py -r --sort %Y/%Y-%m-%b /Volumes/BackupHFS/InvertPhotos/ /Volumes/BackupHFS/TargetPhotos/
+
 """
 
 from __future__ import print_function
@@ -220,7 +231,7 @@ class ExifTool(object):
 def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
                copy_files=False, test=False, remove_duplicates=True, day_begins=0,
                additional_groups_to_ignore=['File'], additional_tags_to_ignore=[],
-               use_only_groups=None, use_only_tags=None, verbose=True):
+               use_only_groups=None, use_only_tags=None, invert_result=None, verbose=True):
     """
     This function is a convenience wrapper around ExifTool based on common usage scenarios for sortphotos.py
 
@@ -405,19 +416,29 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
                 break
 
 
+        # JT mod
+        fileMatch = fileIsIdentical
+        if invert_result != None:
+            fileMatch = not fileMatch
+
+
         # finally move or copy the file
         if test:
             test_file_dict[dest_file] = src_file
 
         else:
-
-            if copy_files:
-                if fileIsIdentical:
-                    continue  # if file is same, we just ignore it (for copy option)
+            if not invert_result:
+                if copy_files:
+                    if fileMatch:
+                        continue  # if file is same, we just ignore it (for copy option)
+                    else:
+                        shutil.copy2(src_file, dest_file)
                 else:
-                    shutil.copy2(src_file, dest_file)
+                    shutil.move(src_file, dest_file)
             else:
-                shutil.move(src_file, dest_file)
+                # invert_result ONLY does copy
+                if fileMatch:
+                    shutil.copy2(src_file, invert_result[0])
 
 
 
@@ -475,13 +496,18 @@ def main():
                         help='specify a restricted set of tags to search for date information\n\
     e.g., EXIF:CreateDate')
 
-    # parse command line arguments
+    parser.add_argument('--invert-result', type=str, nargs='+',
+                        default=None,
+                        help='invert result to select NON-MATCHED photos and stored in this directory')
+
+
+# parse command line arguments
     args = parser.parse_args()
 
     sortPhotos(args.src_dir, args.dest_dir, args.sort, args.rename, args.recursive,
                args.copy, args.test, not args.keep_duplicates, args.day_begins,
                args.ignore_groups, args.ignore_tags, args.use_only_groups,
-               args.use_only_tags, not args.silent)
+               args.use_only_tags, args.invert_result, not args.silent)
 
 if __name__ == '__main__':
     main()
