@@ -88,26 +88,28 @@ def main(argv):
     except getopt.GetoptError as e:
         print str(e)
         print usage_string
-        sys.exit(2)
+        sys.exit(0)
 
     specific_playlist_name = None
 
     for opt, arg in opts:
         if opt == '-h':
             print "usage: " + usage_string
-            sys.exit(2)
+            sys.exit(0)
         elif opt == '-f':
             specific_playlist_name = arg
 
     if len(args) < 2 or len(args) > 3:
         print "Wrong number of arguments: " + usage_string
         print usage_string
-        sys.exit(2)
+        sys.exit(0)
 
     itune_library_path = args[0]
     local_music_folder = args[1]
     if len(args) > 2:
         remote_music_folder = args[2]
+    else:
+        remote_music_folder = None
 
     all_dirs = []
 
@@ -164,10 +166,13 @@ def main(argv):
             # remove files in folder that aren't in source (a la rsync --delete)
             for root, dirs, files in os.walk(full_dirname):
                 for file in files:
+                    print "Walking " + file
                     full_file = full_dirname + '/' + file
                     if not full_file in all_files:
-                        print "Removing file " + full_file
-                        os.remove(full_file)
+                        if os.path.exists(full_file):
+                            # needed for more than 2-level nested folders
+                            print "Removing file " + full_file
+                            os.remove(full_file)
 
             # write out M3U files
             # local_m3u_path = local_playlist_folder + '/' + display_playlist_name + '.m3u'
