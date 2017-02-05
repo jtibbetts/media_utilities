@@ -32,6 +32,12 @@ def de_unicode(ustr):
     s = unicodedata.normalize("NFKD", ustr).encode('ascii', 'ignore')
     return re.sub( '\s+', ' ', s).strip()
 
+def get_all_track_info(itlib):
+    all_track_info = {}
+    for id, item in itlib.songs.items():
+        all_track_info[item.name] = item
+    return all_track_info
+
 def get_machine_specific_prefix(path):
     last_slash_pos = path.rfind('/')
     return path[0:last_slash_pos+1] + ITUNES_SUBFOLDER + '/'
@@ -126,6 +132,11 @@ def main(argv):
     print "Loading iTunes library from " + itune_library_path
     itlib = Library(itune_library_path)
 
+    all_track_info = get_all_track_info(itlib)
+
+    if True:
+        sys.exit(0)
+
     for playlist_name in itlib.getPlaylistNames():
         if "::" in playlist_name:
             display_playlist_name = playlist_name.replace('::', ' ')
@@ -166,7 +177,6 @@ def main(argv):
             # remove files in folder that aren't in source (a la rsync --delete)
             for root, dirs, files in os.walk(full_dirname):
                 for file in files:
-                    print "Walking " + file
                     full_file = full_dirname + '/' + file
                     if not full_file in all_files:
                         if os.path.exists(full_file):
