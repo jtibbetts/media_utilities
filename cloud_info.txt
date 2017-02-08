@@ -1,0 +1,69 @@
+http://cloud.ubuntu.com/ami/
+
+us-west 32 11.04
+
+ami-116f3c54
+
+
+ssh in
+
+resize
+
+ec2-184-72-53-91.us-west-1.compute.amazonaws.com
+
+apt-get update
+apt-get upgrade
+
+apt-get subversion
+apt-get install mysql-server mysql-client
+root pswd: root
+apt-get apache2
+apt-get install php5 libapache2-mod-php5
+apt-get install php5-mysqapt-get install phpmyadmin
+
+sudo apt-get install openjdk-6-jdk
+
+apt-get build-essential
+apt-get install libxml2-dev
+
+apt-get install libxslt1-dev
+
+apt-get install python-setuptools     (gets easy_install)
+
+easy_install virtualenv
+sudo easy_install -U pip
+
+pip install virtualenvwrapper
+
+mkvirtualenv --no-site-packages py27standard
+apt-get install python-dev
+apt-get install libmysqlclient15-dev
+ 
+pip install MySQL-python
+
+apt-get install python-libxml2
+
+pip:
+yolk
+PIL
+PyXML
+Pygments
+Sphinx
+ZSI
+boto
+decorator
+elementtree
+httplib2
+pexpect
+python-memcached
+pytz
+soaplib
+django
+django-tagging
+django-imagekit
+
+
+
+
+
+
