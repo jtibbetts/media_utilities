@@ -1,0 +1,64 @@
+
+alias ctags='/usr/local/bin/ctags'
+alias ctags='/usr/local/bin/ctags'
+
+export PATH="~/bin:/usr/local/bin:/usr/bin:$HOME/bin:/usr/local/mysql/bin:$PATH"
+#export PYTHONPATH="$HOME/lib/python2.7/site-packages"
+export PATH="$(brew --prefix homebrew/php/php56)/sbin:$PATH"
+export PATH="/usr/local/sbin:$PATH"
+export PATH="/usr/local/share/python:$PATH"
+
+# function mm() {
+# 	pushd ~/git/memento > /dev/null 2>&1
+# 	git grep "$1"
+# 	popd > /dev/null 2>&1
+# }
+
+alias mm='~/git/mm/mm.rb'
+
+alias rdfconvert='~/rdfconvert-0.4/bin/rdfconvert.sh'
+
+export PS1="jt_mac:\W$ "
+
+export EDITOR="/usr/local/bin/mate -w"
+# export EDITOR="$HOME/bin/subl -w"
+
+alias ngrokx='./ngrok $1 $2 $3 $4'
+
+# python
+source /usr/local/bin/virtualenvwrapper.sh
+
+# pip should only run if there is a virtualenv currently activated
+export PIP_REQUIRE_VIRTUALENV=true
+# cache pip-installed packages to avoid re-downloading
+export PIP_DOWNLOAD_CACHE=$HOME/.pip/cache
+VIRTUALENVWRAPPER_PYTHON=/usr/local/bin/python
+export WORKON_HOME=~/venv
+
+workon dj18
+
+# java
+export MAVEN_OPTS='-Xmx512m -XX:MaxPermSize=128m'
+export JENAROOT=/Users/johntibbetts/git/jena
+
+function setjdk() {
+  if [ $# -ne 0 ]; then
+   removeFromPath '/System/Library/Frameworks/JavaVM.framework/Home/bin'
+   if [ -n "${JAVA_HOME+x}" ]; then
+    removeFromPath $JAVA_HOME
+   fi
+   export JAVA_HOME=`/usr/libexec/java_home -v $@`
+   export PATH=$JAVA_HOME/bin:$PATH
+  fi
+ }
+ function removeFromPath() {
+  export PATH=$(echo $PATH | sed -E -e "s;:$1;;" -e "s;$1:?;;")
+ }
+setjdk 1.7
+
+# export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.7.0_09.jdk/Contents/Home"
+
+# ruby
+if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
+
+alias filetree="ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/ /' -e 's/-/|/'" 
