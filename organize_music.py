@@ -22,25 +22,46 @@ sys.setdefaultencoding('utf-8')
 
 ITUNES_SUBFOLDER = "iTunes Music"
 
+# Globals
+all_dirs = []
+target_music_folder = None
+all_track_info = None
+track_location_dict = {}
+
+
+def create_loid_segment(s):
+    if s is None:
+        return ''
+    return str(s).replace(" ", "")
+
 def create_playlist_dirname(playlist_name):
     if playlist_name.endswith("::"):
         playlist_name = playlist_name[0:-2]
     playlist_dirname = playlist_name.replace('::', '/')
     return re.sub(' +', '_', playlist_dirname)
 
-def de_unicode(ustr):
-    s = unicodedata.normalize("NFKD", ustr).encode('ascii', 'ignore')
+def normalize_str(ustr):
+    s = unicode_to_utf8(ustr)
     return re.sub( '\s+', ' ', s).strip()
 
 def get_all_track_info(itlib):
     all_track_info = {}
-    for id, item in itlib.songs.items():
-        all_track_info[item.name] = item
+    for id, track in itlib.songs.items():
+        loid = get_track_loid(track)
+        all_track_info[loid] = {'track': track, 'in_folders': []}
     return all_track_info
 
-def get_machine_specific_prefix(path):
-    last_slash_pos = path.rfind('/')
-    return path[0:last_slash_pos+1] + ITUNES_SUBFOLDER + '/'
+def get_track_loid(track):
+    loid = create_loid_segment(track.name)
+    loid += '|'
+    loid += create_loid_segment(track.composer)
+    loid += '|'
+    loid += create_loid_segment(track.album)
+    loid += '|'
+    loid += create_loid_segment(track.length)
+    loid += '|'
+    loid += create_loid_segment(track.size)
+    return loid
 
 def mkdir_p(path):
     try:
@@ -53,7 +74,7 @@ def mkdir_p(path):
 
 def normalize_track_name(name):
     if isinstance(name, unicode):
-        name = de_unicode(name)
+        name = normalize_str(name)
     name_with_blanks = name
     name = re.sub('\s+', '_', name)
     name = re.sub('\s*-\s*', '_', name)     # intervening ' - '
@@ -65,10 +86,77 @@ def normalize_track_name(name):
     name = re.sub('_+', '_', name)
     return (name, name_with_blanks)
 
+def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist_name):
+    global target_music_folder,  all_track_info, track_location_dict
+    counter = 0
+    all_files = []
+
+    for track in track_list:
+        track_loid = get_track_loid(track)
+        track_info = all_track_info[track_loid]
+        if track_info == None:
+            # shouldn't happen
+            print "Error: track_loid " + track_loid + " could not be found"
+            continue
+
+        (track_name, track_name_display) = normalize_track_name(track.name)
+        if is_folder_not_playlist:
+            source_location = '/' + track.location
+            file_name, file_ext = os.path.splitext(source_location)
+            playlist_dirname = create_playlist_dirname(playlist_name)
+            relative_path = playlist_dirname + '/' + ("%03d" % counter) + '-' + track_name + file_ext
+            absolute_path = target_music_folder + '/' + relative_path
+            if not os.path.isfile(absolute_path):
+                shutil.copyfile(source_location, absolute_path)
+            track_info['in_folders'].append(playlist_name)
+            all_files.append(absolute_path)
+            track_location_dict[track_loid] = relative_path
+        else:
+            in_folder_name = next(iter(track_info['in_folders']), None)
+            if in_folder_name == None:
+                source_location = '/' + track.location
+                file_name, file_ext = os.path.splitext(source_location)
+                relative_path = 'Unassigned/' + ("%03d" % counter) + '-' + track_name + file_ext
+                absolute_path = target_music_folder + '/' + relative_path
+                if not os.path.isfile(absolute_path):
+                    unassigned_folder_name = target_music_folder + '/' + 'Unassigned'
+                    if not os.path.exists(unassigned_folder_name):
+                        mkdir_p(unassigned_folder_name)
+                    shutil.copyfile(source_location, absolute_path)
+                track_location_dict[track_loid] = relative_path
+            else:
+                source_location = '/' + track.location
+                file_name, file_ext = os.path.splitext(source_location)
+                playlist_dirname = create_playlist_dirname(in_folder_name)
+                relative_path = playlist_dirname + '/' + ("%03d" % counter) + '-' + track.name + file_ext
+
+
+        length_in_seconds = int(math.ceil(track.length / 1000.0))
+        m3u_entries.append([length_in_seconds, track_name_display, relative_path])
+
+        counter += 1
+
+    # remove files in folder that aren't in source (a la rsync --delete)
+    # for root, dirs, files in os.walk(full_dirname):
+    #     for file in files:
+    #         full_file = full_dirname + '/' + file
+    #         if not full_file in all_files:
+    #             if os.path.exists(full_file):
+    #                 # needed for more than 2-level nested folders
+    #                 print "  Removing file " + full_file
+    #                 os.remove(full_file)
+
 def remove_prefix(text, prefix):
     if text.startswith(prefix):
         return text[len(prefix):]
     return text
+
+def unicode_to_utf8(ustr):
+    if isinstance(ustr, unicode):
+        result = unicodedata.normalize('NFKD', ustr).encode('utf8')
+    else:
+        result = ustr
+    return result
 
 def write_m3u(path, entries):
     if len(entries) > 0:
@@ -87,10 +175,12 @@ def write_m3u(path, entries):
 
 
 def main(argv):
-    usage_string = "organize_music.py -h [-f <select folder>] <iTuneLibrary> <localMusicFolder> [<remoteMusicFolder>]"
+    global target_music_folder,  all_track_info, track_location_dict
+
+    usage_string = "organize_music.py -h <iTuneLibrary> <localMusicFolder>"
 
     try:
-        opts, args = getopt.getopt(argv, "hf:")
+        opts, args = getopt.getopt(argv, "h:")
     except getopt.GetoptError as e:
         print str(e)
         print usage_string
@@ -102,117 +192,98 @@ def main(argv):
         if opt == '-h':
             print "usage: " + usage_string
             sys.exit(0)
-        elif opt == '-f':
-            specific_playlist_name = arg
 
-    if len(args) < 2 or len(args) > 3:
+    if len(args) != 2:
         print "Wrong number of arguments: " + usage_string
         print usage_string
         sys.exit(0)
 
     itune_library_path = args[0]
-    local_music_folder = args[1]
-    if len(args) > 2:
-        remote_music_folder = args[2]
-    else:
-        remote_music_folder = None
-
-    all_dirs = []
-
-    local_playlist_folder = local_music_folder + '/' + 'local_playlists'
-    if not os.path.exists(local_playlist_folder):
-        os.makedirs(local_playlist_folder)
-
-    remote_playlist_folder = local_music_folder + '/' + 'remote_playlists'
-    if not os.path.exists(remote_playlist_folder):
-        os.makedirs(remote_playlist_folder)
-
-    machine_specific_prefix = get_machine_specific_prefix(itune_library_path)
+    target_music_folder = args[1]
+    if not os.path.exists(target_music_folder):
+        os.makedirs(target_music_folder)
 
     print "Loading iTunes library from " + itune_library_path
     itlib = Library(itune_library_path)
 
+    print "Getting all track info"
     all_track_info = get_all_track_info(itlib)
 
-    if True:
-        sys.exit(0)
+    # clear all m3a (playlist) files
+    playlist_files = os.listdir(target_music_folder)
+    for playlist_file in playlist_files:
+        if playlist_file.endswith(".m3u"):
+            os.remove(target_music_folder + '/' + playlist_file)
 
+    # Folder creation
+    print "Create folders"
     for playlist_name in itlib.getPlaylistNames():
+        # ignore playlists for the moment
+        if playlist_name.startswith('Playlist::'):
+            continue
+
         if "::" in playlist_name:
             display_playlist_name = playlist_name.replace('::', ' ')
 
-            local_m3u_entries = []
-            remote_m3u_entries = []
+            m3u_entries = []
 
             playlist_dirname = create_playlist_dirname(playlist_name)
-            full_dirname = local_music_folder + '/' + playlist_dirname
+            full_dirname = target_music_folder + '/' + playlist_dirname
             mkdir_p(full_dirname)
-            all_dirs.append(playlist_dirname)
+            all_dirs.append(unicode_to_utf8(playlist_dirname))
 
-            # if specific_playlist_name and not this playlist
-            if specific_playlist_name != None and specific_playlist_name != playlist_name:
-                continue
+            print "  Folder: " + playlist_name
 
-            print "Playlist: " + playlist_name
+            track_list = itlib.getPlaylist(playlist_name).tracks
 
-            counter = 0
-            all_files = []
-            for track in itlib.getPlaylist(playlist_name).tracks:
-                source_location = '/' + track.location
-                file_name, file_ext = os.path.splitext(source_location)
-                (track_name, track_name_display) = normalize_track_name(track.name)
-                local_path = full_dirname + '/' + ("%03d" % counter) + '-' + track_name + file_ext
-                if not os.path.isfile(local_path):
-                    shutil.copyfile(source_location, local_path)
-                all_files.append(local_path)
-
-                length_in_seconds = int(math.ceil(track.length / 1000.0))
-                local_m3u_entries.append([length_in_seconds, track_name_display, local_path])
-                if remote_music_folder != None:
-                    remote_path = remote_music_folder + '/' + playlist_dirname + '/' + ("%03d" % counter) + '-' + track_name + file_ext
-                    remote_m3u_entries.append([length_in_seconds, track_name_display, remote_path])
-
-                counter += 1
-
-            # remove files in folder that aren't in source (a la rsync --delete)
-            for root, dirs, files in os.walk(full_dirname):
-                for file in files:
-                    full_file = full_dirname + '/' + file
-                    if not full_file in all_files:
-                        if os.path.exists(full_file):
-                            # needed for more than 2-level nested folders
-                            print "Removing file " + full_file
-                            os.remove(full_file)
+            process_track_list(True, track_list, m3u_entries, playlist_name)
 
             # write out M3U files
-            # local_m3u_path = local_playlist_folder + '/' + display_playlist_name + '.m3u'
-            # write_m3u(local_m3u_path, local_m3u_entries)
-            if remote_music_folder != None:
-                remote_m3u_path = remote_playlist_folder + '/' + display_playlist_name + '.m3u'
-                write_m3u(remote_m3u_path, remote_m3u_entries)
+            local_m3u_path = target_music_folder + '/' + display_playlist_name + '.m3u'
+            write_m3u(local_m3u_path, m3u_entries)
 
     # traverse local music folder and delete folders that are no longer used
     remove_dirs = []
-    for root, dirs, files in os.walk(local_music_folder):
-        if root == local_music_folder:
+    for root, dirs, files in os.walk(target_music_folder):
+        if root == target_music_folder:
             continue
         hit = False
         for local_dir in all_dirs:
-            local_full_dir = local_music_folder + '/' + local_dir
-            if local_full_dir.startswith(root):
+            local_full_dir = target_music_folder + '/' + local_dir
+            if local_full_dir.startswith(unicode_to_utf8(root)):
                 hit = True
                 break
         if not hit:
-            if not root.endswith("_playlists"):
+            if not root.endswith("/Unassigned"):
                 remove_dirs.append(root)
     for remove_dir in remove_dirs:
         print ("removing " + remove_dir)
         shutil.rmtree(remove_dir)
 
 
+    print "Create playlists"
+    for playlist_name in itlib.getPlaylistNames():
+        if playlist_name.startswith('Playlist::'):
+            # trim Playlist prefix for display version
+            display_playlist_name = playlist_name[len('Playlist::'):].replace('::', ' ')
+
+            m3u_entries = []
+
+            print "  Playlist: " + display_playlist_name
+
+            track_list = itlib.getPlaylist(playlist_name).tracks
+
+            process_track_list(False, track_list, m3u_entries, playlist_name)
+
+            # write out M3U files
+            local_m3u_path = target_music_folder + '/' + display_playlist_name + '.m3u'
+            write_m3u(local_m3u_path, m3u_entries)
+
 
     print "Done"
     sys.exit(0)
+
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
