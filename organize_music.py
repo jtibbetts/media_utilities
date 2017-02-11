@@ -53,10 +53,14 @@ def get_all_track_info(itlib):
 
 def get_original_files(target_folder_path):
     original_files = []
+    if "Elgar" in target_folder_path:
+        pass
     for root, dirs, files in os.walk(target_folder_path):
-        for file in files:
-            full_file = root + '/' + file
-            original_files.append(full_file)
+        # only immediate subdirectory
+        if root == target_folder_path:
+            for file in files:
+                full_file = root + '/' + file
+                original_files.append(full_file)
     return original_files
 
 def get_track_loid(track):
@@ -109,7 +113,7 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
 
         (track_name, track_name_display) = normalize_track_name(track.name)
         if is_folder_not_playlist:
-            if "Bleecker" in track_name:
+            if "Elgar" in track_name:
                 pass
             source_location = '/' + track.location
             file_name, file_ext = os.path.splitext(source_location)
@@ -123,7 +127,7 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
             track_location_dict[track_loid] = relative_path
         else:
             in_folder_name = next(iter(track_info['in_folders']), None)
-            if "Bleecker" in track_name:
+            if "Elgar" in track_name:
                 pass
             if in_folder_name == None:
                 source_location = '/' + track.location
@@ -156,6 +160,8 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
 
 def remove_old_files(target_folder_path, original_files, new_files):
     # remove files in folder that aren't in source (a la rsync --delete)
+    if "Elgar" in target_folder_path:
+        pass
     for file in original_files:
         if not file in new_files:
             os.remove(file)
@@ -239,7 +245,7 @@ def main(argv):
             continue
 
         if "::" in playlist_name:
-            display_playlist_name = playlist_name.replace('::', ' ').strip()
+            display_playlist_name = unicode_to_utf8(playlist_name.replace('::', ' ').strip())
 
             m3u_entries = []
 
@@ -250,7 +256,7 @@ def main(argv):
 
             original_file_list = get_original_files(full_dirname)
 
-            print "  Folder: " + playlist_name
+            print "  Folder: " + display_playlist_name
 
             track_list = itlib.getPlaylist(playlist_name).tracks
 
