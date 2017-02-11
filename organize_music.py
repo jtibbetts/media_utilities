@@ -114,7 +114,7 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
             source_location = '/' + track.location
             file_name, file_ext = os.path.splitext(source_location)
             playlist_dirname = create_playlist_dirname(playlist_name)
-            relative_path = playlist_dirname + '/' + track_name + file_ext
+            relative_path = playlist_dirname + '/' + ("%03d" % counter) + '-' + track_name + file_ext
             absolute_path = target_music_folder + '/' + relative_path
             if not os.path.isfile(absolute_path):
                 shutil.copyfile(source_location, absolute_path)
@@ -128,7 +128,7 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
             if in_folder_name == None:
                 source_location = '/' + track.location
                 file_name, file_ext = os.path.splitext(source_location)
-                relative_path = 'Unassigned/' + track_name + file_ext
+                relative_path = 'Unassigned/' + ("%03d" % counter) + '-' + track_name + file_ext
                 absolute_path = target_music_folder + '/' + relative_path
                 if not os.path.isfile(absolute_path):
                     unassigned_folder_name = target_music_folder + '/' + 'Unassigned'
