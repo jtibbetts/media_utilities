@@ -1,0 +1,5 @@
+# jt
+python ~/git/media_utilities/organize_music.py  "/Users/johntibbetts/Music/iTunes/iTunes Music Library.xml" /Users/johntibbetts/Music/music-jt
+
+# test
+python ~/git/media_utilities/organize_music.py  "/Volumes/BackupHFS/Music/iTunesBB/iTunes Music Library.xml" /Users/johntibbetts/Music/music-bb
