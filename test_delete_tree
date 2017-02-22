@@ -1,0 +1,35 @@
+
+import os
+import sys
+import shutil
+
+
+def dir_harvest(path):
+    dir_walk = {}
+    for root, dirs, files in os.walk(path):
+        all_files = files
+        if '.DS_Store' in files:
+            all_files = files.remove('.DS_Store')
+        all_dirs = []
+        for dir in dirs:
+            print "root: " + root + "  dir: " +  dir
+            all_dirs.append(root + '/' + dir)
+        dir_walk[root] = [all_files, all_dirs]
+    return dir_walk
+
+def dir_prune(path, previous_dir_walk):
+    entry = previous_dir_walk[path]
+    now_dir_walk = dir_harvest(path)
+
+    entry_files = entry[0]
+    entry_dirs = entry[1]
+    now_files = os.listdir(path)
+
+
+
+
+path = '/Users/johntibbetts/Music/music-jt'
+dir_walk = dir_harvest(path)
+dir_prune(path, dir_walk)
+
+
