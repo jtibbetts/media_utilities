@@ -96,8 +96,6 @@ def parse_playlist_name(playlist_name):
     if len(zones) <= 1:
         pass
     else:
-        if "folder" in playlist_name.lower():
-            pass
         prefix = parse_prefix(zones[0].strip().lower())
         if prefix != '':
             if len(zones) >= 2:
@@ -126,7 +124,7 @@ def parse_token(re_obj, token_idx):
     result = ''
     check_value = re_obj.groups()[token_idx]
     if check_value != None:
-        if 'folder'.startswith(check_value):
+        if 'folder'.startswith(check_value) or check_value == 'fldr':
             result = 'folder'
         elif 'playlist'.startswith(check_value):
             result = 'playlist'
