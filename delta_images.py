@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 from shutil import copyfile
 
 def usage():
@@ -57,12 +58,12 @@ def main(sourceDir, textDir, diffDir):
 
 if __name__=='__main__':
     args = sys.argv[1:]
-    if len(args) != 3:
+    if len(args) != 2:
         usage()
         sys.exit(2)
 
     sourceDir = args[0]
     targetDir = args[1]
-    diffDir = os.path.expanduser("~/Pictures/DiffPhotosAt" +  )
+    diffDir = os.path.expanduser("~/Pictures/DiffPhotosAt" +  time.strftime('%Y-%m-%d--%H:%M:%S'))
 
     main(sourceDir, targetDir, diffDir)
