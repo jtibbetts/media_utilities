@@ -1,6 +1,36 @@
 #! /Users/johntibbetts/venv/dj18/bin/python
-
-# rsync -avz --delete -e ssh ~/Music/music-jt/ root@192.168.2.150:/volume1/music-jt
+#
+# """
+# OrganizeMusic converts an iTunes library into external folders and links that can be imported
+#     into Sonos or other music system (MS)
+#
+# Music systems will recognize folders of songs, or special .m3u files that are a collection links back into songs
+# that live in those folders.
+#
+# To use this requires conventions be followed in iTunes:
+#   1. Not all resources in iTunes need to be exported.  Only those that are desired to be recognized by the MS
+#      They will be exported to the <local music folder> passed in as the first arg to this program.
+#
+#   2. Any iTunes Playlist that has name beginning with "Folder: ", or just "F:", will be moved into the external folder.
+#       e.g. Folder: Musical Offering will create an external folder "Musical Offering"
+#           Ditto F: Praetories to folder "Praetorius"
+#      To ensure the music in the foldr is played in sequence (file systems don't impose order), the song will be
+#      prefixed with "nnn-" as a sequence number.  e.g. 001-First Movement, 002-Second Movement, etc
+#
+#      To allow complex music libraries to exist Organize Music will allow folder structures to have deep paths.
+#      e.g. F: Bach/Teldec/Motets will be put into an external folder Back/Teldec/Motets (under the <local-music-folder>
+#
+#   3. Any iTunes Playlist beginning with "Playlist:", or "P:", will be turned into a special ".m3u" file.
+#      This is a file of links to the song.  Organize Music will find the song in a Folder (above) in a 2nd pass.
+#      If the file hasn't been put into a folder it will add the song to an Unassigned/ folder.
+#
+#   4. Large multivolume music collections (e.g., Ring Cycle) can be specified as "Folder+Playlist:", or "F+P:".
+#      This creates an ordered folder plus a playlist for it.  (This is a legacy feature...before songs were
+#      sequenced in folders).
+#
+# At end of the harvesting process the <local music folder> should be copied to the target on some NAS.
+# rsync -avz --delete -e ssh ~/Music/music-jt/ root@kazan:/volume1/music-jt
+# """
 
 import os
 import sys
@@ -33,6 +63,17 @@ def create_loid_segment(s):
     if s is None:
         return ''
     return str(s).replace(" ", "")
+
+def create_per_folder_cache(folder_path):
+    result = {}
+    filenames = os.listdir(folder_path)
+    for filename in filenames:
+        (root, ext) = os.path.splitext(filename)
+        zones = root.split('-')
+        zones.pop(0)
+        base_filename = '-'.join(zones)
+        result[base_filename] = filename
+    return result
 
 def create_playlist_dirname(playlist_name):
     playlist_dirname = playlist_name.replace('::', '/')
@@ -135,6 +176,8 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
     counter = 0
     all_files = []
 
+    per_folder_cache = {}
+
     for track in track_list:
         track_loid = get_track_loid(track)
         track_info = all_track_info[track_loid]
@@ -171,11 +214,23 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
                 all_files.append(absolute_path)
                 track_location_dict[track_loid] = relative_path
             else:
+                absolute_folder_path = target_music_folder + '/' + in_folder_name
+                # already in some folder somewhere...build per-folder cache of track_names
+                if not (in_folder_name in per_folder_cache):
+                    # build cache
+                    per_folder_cache[in_folder_name] = create_per_folder_cache(absolute_folder_path)
+
+                folder_cache = per_folder_cache[in_folder_name]
+
                 source_location = '/' + track.location
                 file_name, file_ext = os.path.splitext(source_location)
                 playlist_dirname = create_playlist_dirname(in_folder_name)
-                relative_path = playlist_dirname + '/' + ("%03d" % counter) + '-' + track_name + file_ext
-                absolute_path = target_music_folder + '/' + relative_path
+                prefixed_filename = folder_cache[track_name]
+                if prefixed_filename == None:
+                    print "Warning: can't find track for " + track_name
+                    break
+                relative_path = playlist_dirname + '/' + prefixed_filename
+
 
         length_in_seconds = int(math.ceil(track.length / 1000.0))
         m3u_entries.append([length_in_seconds, track_name_display, relative_path])
@@ -259,7 +314,7 @@ def main(argv):
         if playlist_file.endswith(".m3u"):
             os.remove(target_music_folder + '/' + playlist_file)
 
-    # Folder creation
+    # Folder creation -- folders are where a track lives
     print "Create folders"
     for raw_playlist_name in itlib.getPlaylistNames():
         (discriminator, display_playlist_name, dir_playlist_name) = parse_playlist_name(raw_playlist_name.strip())
@@ -286,6 +341,7 @@ def main(argv):
                 local_m3u_path = target_music_folder + '/' + display_playlist_name + '.m3u'
                 write_m3u(local_m3u_path, m3u_entries)
 
+    # Playlists are links to folders ... the list of tracks are written to an .m3u files
     print "Create playlists"
     unassigned_folder_name = target_music_folder + '/' + 'Unassigned'
     original_file_list = get_original_files(target_music_folder + '/' + 'Unassigned')
