@@ -200,6 +200,10 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
             track_location_dict[track_loid] = relative_path
         else:
             in_folder_name = next(iter(track_info['in_folders']), None)
+            if in_folder_name != None:
+                absolute_folder_path = target_music_folder + '/' + in_folder_name
+                if not os.path.exists(absolute_folder_path):
+                    in_folder_name = None
             if in_folder_name == None:
                 source_location = '/' + track.location
                 file_name, file_ext = os.path.splitext(source_location)
@@ -214,7 +218,6 @@ def process_track_list(is_folder_not_playlist, track_list, m3u_entries, playlist
                 all_files.append(absolute_path)
                 track_location_dict[track_loid] = relative_path
             else:
-                absolute_folder_path = target_music_folder + '/' + in_folder_name
                 # already in some folder somewhere...build per-folder cache of track_names
                 if not (in_folder_name in per_folder_cache):
                     # build cache
