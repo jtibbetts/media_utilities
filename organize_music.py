@@ -45,6 +45,10 @@ import unicodedata
 
 from urlparse import urlparse
 
+egg_path='/Users/johntibbetts/git/pyitunes/dist/pyItunes-1.4-py2.7.egg'
+
+sys.path.append(egg_path)
+
 from pyItunes import *
 
 reload(sys)
